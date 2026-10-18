@@ -1,0 +1,8 @@
+# Dependencies for the unit tests. They run on synthetic data, never on the real CSV.
+numpy
+pandas
+scikit-learn
+xgboost
+imbalanced-learn
+matplotlib
+pytest

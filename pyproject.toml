@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fraudbudget"
+version = "0.0.1"
+description = "Credit card fraud detection on extremely imbalanced data, evaluated under an alert budget and a simulated business cost."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Mohamed Amine Belkacem" }]
+dependencies = ["numpy", "pandas", "scikit-learn", "xgboost", "imbalanced-learn", "matplotlib"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
