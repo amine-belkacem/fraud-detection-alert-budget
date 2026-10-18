@@ -83,7 +83,7 @@ def test_load_dataset_on_small_csv(tmp_path):
     synthetic_frame(n_rows=20, n_frauds=3).to_csv(path, index=False)
     df = load_dataset(path, check_full=False)
     got = (len(df), int(df["Class"].sum()), str(df["Class"].dtype))
-    expected = (20, 3, "int8")
+    expected = (20, 3, "int64")
     assert got == expected, f"ECHEC : obtenu {got}, attendu {expected}"
 
 
@@ -96,3 +96,16 @@ def test_real_dataset_counts():
     assert abs(prevalence - expected) < 1e-12, (
         f"ECHEC prévalence : obtenu {prevalence}, attendu {expected}"
     )
+
+
+def test_label_arithmetic_does_not_overflow(tmp_path):
+    # Regression: with Class stored as int8, 100 x 6 frauds wrapped around to 88
+    # (600 - 512) and hourly fraud rates came out negative. 6 frauds in a group
+    # of 1,082 rows must give 100 x 6 / 1082 = 0.5545 %.
+    df = synthetic_frame(n_rows=1082, n_frauds=6)
+    path = tmp_path / "rate.csv"
+    df.to_csv(path, index=False)
+    loaded = load_dataset(path, check_full=False)
+    got = float(100 * loaded["Class"].groupby(np.zeros(1082)).sum().iloc[0] / 1082)
+    expected = 100 * 6 / 1082
+    assert abs(got - expected) < 1e-12, f"ECHEC taux : obtenu {got}, attendu {expected}"

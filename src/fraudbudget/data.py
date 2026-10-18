@@ -63,7 +63,12 @@ def check_counts(df: pd.DataFrame) -> None:
 
 
 def load_dataset(path: str | Path, check_full: bool = True) -> pd.DataFrame:
-    """Read the CSV, validate it and return it with Class as int8."""
+    """Read the CSV, validate it and return it with Class as int64.
+
+    I first stored Class as int8 to save memory. It overflowed silently as soon
+    as a script computed 100 * frauds per hour (600 does not fit in 8 bits), so
+    the label now keeps a full-width integer type.
+    """
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(
@@ -73,5 +78,5 @@ def load_dataset(path: str | Path, check_full: bool = True) -> pd.DataFrame:
     validate_schema(df)
     if check_full:
         check_counts(df)
-    df[TARGET] = df[TARGET].astype("int8")
+    df[TARGET] = df[TARGET].astype("int64")
     return df
