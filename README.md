@@ -139,6 +139,95 @@ Reproduce with `python scripts/tune.py` (about 4 min), then
 `python scripts/run_models.py` (about 7 min on my laptop) and
 `python scripts/missed_frauds.py`.
 
+## Choosing the threshold, and what it costs (milestone J3)
+
+The threshold is picked on the validation slice, then frozen and applied to test.
+Three rules, matching three ways a fraud team can state its constraint:
+
+- **FPR cap**: bother at most 0.1 % of honest customers;
+- **alert budget**: raise at most 200 alerts per 100k transactions;
+- **minimum cost**: lowest simulated cost on validation (missed fraud amount + 5 EUR per alert).
+
+Test slice, seed 0, 5 EUR per alert. "Flag nothing" costs 7,729 EUR (the sum of the
+75 frauds); "flag everything" costs 284,810 EUR.
+
+| Model | Rule (chosen on val) | Alerts on test | Frauds caught | Cost (EUR) |
+|---|---|---|---|---|
+| LogReg weighted | threshold 0.5 | 1,588 | 67 | 10,281 |
+| LogReg weighted | FPR 0.1 % | 106 | 60 | 2,928 |
+| XGBoost weighted | FPR 0.1 % | 106 | 60 | 3,153 |
+| XGBoost weighted | alert budget | 114 | 60 | 3,193 |
+| XGBoost weighted | minimum cost | 61 | 56 | 3,940 |
+| XGBoost, no weighting | FPR 0.1 % | 105 | 60 | 2,923 |
+| XGBoost + undersampling | minimum cost | 74 | 58 | 2,771 |
+
+Full table with every model and rule, plus the best threshold in hindsight:
+`results/thresholds_test.csv`.
+
+![cost curve](figures/cost_curve.png)
+
+What I take from it:
+
+- **The threshold matters more than the model.** The weighted logistic regression
+  goes from 10,281 EUR at 0.5 to 2,928 EUR with the FPR rule, 72 % less. Once
+  the threshold is set properly, every model lands between 2,770 and 4,210 EUR.
+- **"Minimise the cost on validation" sounds like the right rule and is the least
+  reliable one.** The cost curve is a staircase driven by a few large frauds.
+  For XGBoost, the rule stops at 61 alerts; the 62nd transaction in the ranking is
+  a 996 EUR fraud. Validation holds 57 frauds whose amounts have little to do
+  with the test ones, so the minimum moves from one slice to the next. The FPR and
+  budget rules only depend on the ranking and transfer better.
+- **Thresholds do not transfer exactly.** The budget rule picks 113 alerts on
+  validation, and the same threshold raises 114 to 123 on test, up to 9 % over
+  budget. The score distribution shifts between days; a real system would have
+  to recalibrate the threshold on recent traffic.
+- **The cost of one model on one slice is very uncertain.** With 1,000 bootstrap
+  replicates, XGBoost + undersampling costs 2,771 EUR [812, 5,598], a 64 % saving
+  over flagging nothing [35 %, 88 %] (`results/thresholds_cost_ci.csv`). The
+  intervals of all five models overlap widely, so I do not rank them by cost.
+  The lowest lower bound on the saving is still 17 % (XGBoost + SMOTE): every
+  model beats doing nothing.
+
+### Is the 5 EUR per alert assumption carrying the result?
+
+For each cost per alert from 1 to 20 EUR, the threshold is re-picked on validation
+(minimum-cost rule) and applied to test.
+
+![cost sensitivity](figures/cost_sensitivity.png)
+
+Every model stays between 31 % and 65 % of the cost of flagging nothing across the
+whole range, and flagging everything costs 57,000 to 1.1 million EUR. The
+conclusion "a model with a tuned threshold beats both naive strategies" holds
+however the analyst time is priced within that range.
+
+### Calibration
+
+![calibration](figures/calibration.png)
+
+| Model | Brier score | Mean predicted probability | Observed fraud rate |
+|---|---|---|---|
+| LogReg weighted | 0.0241 | 0.0737 | 0.0013 |
+| XGBoost weighted | 0.00046 | 0.0012 | 0.0013 |
+| XGBoost, no weighting | 0.00044 | 0.0011 | 0.0013 |
+| XGBoost + SMOTE | 0.00045 | 0.0011 | 0.0013 |
+| XGBoost + undersampling | 0.00047 | 0.0013 | 0.0013 |
+
+- The weighted logistic regression is badly overconfident: on average it predicts
+  56 times the real fraud rate, and transactions it scores between 0.5 and 0.9
+  turn out to be fraud 0.23 % of the time. Its ranking is fine (J2), but its
+  scores cannot be read as probabilities.
+- The XGBoost variants are reliable at the top: transactions scored above 0.9
+  are fraud 88 % to 94 % of the time. At the bottom they are too sure of
+  themselves: the 52,600 to 55,800 transactions scored below 0.0001 still contain
+  7 to 10 frauds.
+- Between weighting, SMOTE and undersampling I see no calibration difference I
+  could defend: the middle bins hold fewer than 30 transactions each. The
+  dataset's own authors show that undersampling biases probabilities (Dal Pozzolo
+  et al., 2015); with 75 test frauds that effect stays inside the noise here.
+
+Reproduce with `python scripts/run_thresholds.py` (about 1.5 min, needs
+`results/best_params.json` from `scripts/tune.py`).
+
 ## Tests
 
 ```bash
