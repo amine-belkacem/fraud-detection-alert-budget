@@ -228,6 +228,88 @@ however the analyst time is priced within that range.
 Reproduce with `python scripts/run_thresholds.py` (about 1.5 min, needs
 `results/best_params.json` from `scripts/tune.py`).
 
+## Stress test and drift (milestone J4)
+
+### Same model, same threshold, rarer fraud
+
+The test slice keeps all of its legitimate transactions and only a random subset
+of its 75 frauds, drawn 200 times per level. The threshold is the FPR-0.1 % one
+chosen on validation in J3, unchanged. Only the base rate moves.
+
+![stress test](figures/stress_test.png)
+
+| Prevalence | Frauds kept | ROC-AUC (XGBoost) | PR-AUC (XGBoost) | PR-AUC (LogReg w.) | Precision at the frozen threshold |
+|---|---|---|---|---|---|
+| 0.13 % (as is) | 75 | 0.973 | 0.796 | 0.747 | 0.57 |
+| 0.10 % | 57 | 0.972 | 0.788 | 0.724 | 0.50 |
+| 0.05 % | 28 | 0.974 | 0.769 | 0.655 | 0.32 |
+| 0.02 % | 11 | 0.979 | 0.752 | 0.570 | 0.16 |
+
+Medians over 200 draws; 5th to 95th percentiles in `results/stress_test_summary.csv`.
+
+- **ROC-AUC does not see the base rate.** It compares one fraud with one legitimate
+  transaction at a time, so removing frauds leaves it between 0.97 and 0.99. A
+  dashboard showing only ROC-AUC would report the same model as equally good at
+  every level.
+- **Precision collapses, and it is predictable.** Both models flag 46 legitimate
+  transactions at that threshold, whatever the number of frauds. True positives
+  shrink with the frauds, false positives do not: with 11 frauds,
+  0.8 x 11 / (0.8 x 11 + 46) = 0.16. The dotted line on the figure is that formula; it sits
+  on top of the measured medians. At 0.02 % prevalence, 5 alerts out of 6 would be false.
+- **PR-AUC separates the two models where ROC-AUC could not.** XGBoost loses 0.04
+  PR-AUC from 0.13 % to 0.02 %, the logistic regression loses 0.18. XGBoost puts
+  more frauds at the very top of its ranking, above every legitimate transaction,
+  and that part of the curve does not depend on how many legitimate rows there
+  are. This is the clearest gap between the two models in the whole project, and
+  it only shows up under stress.
+
+### Random split vs temporal split
+
+Same model, same set sizes (60 % train, 20 % test), only the assignment of rows
+changes. Five random stratified splits against the temporal one.
+
+| Model | Temporal split PR-AUC | Random split PR-AUC (mean ± std, 5 splits) |
+|---|---|---|
+| LogReg weighted | 0.747 | 0.747 ± 0.043 |
+| XGBoost weighted | 0.796 | 0.867 ± 0.022 |
+
+All five random splits give XGBoost a higher score than the temporal split (0.843 to
+0.902). A random split mixes transactions from the same hours into train and test,
+and a flexible model can exploit that proximity; the linear model barely can.
+Exact duplicates do not explain the gap: a random split puts 249 to 272 test
+rows next to an identical copy in training, but only 3 to 8 of them are frauds
+(`results/split_comparison.csv`). Reporting the random-split number would have
+added 0.07 PR-AUC that would not survive deployment.
+
+### What changes between the two days
+
+![hourly activity](figures/hourly_activity.png)
+
+- Volume follows a daily cycle with two low-activity windows, most likely nights.
+  The dataset does not give the clock time, so "night" is my reading of the volume.
+- Fraud concentrates in those windows: over hours 0 to 7 and 24 to 31, 156 frauds in
+  35,278 transactions (0.44 %), against 0.13 % the rest of the time
+  (computed from `results/hourly_activity.csv`). The single worst hour reaches 2.1 %.
+- Both night windows fall in the training slice, while the test slice (hours 40 to
+  48) covers an evening. This explains the base rates seen in J1: 0.21 % in train,
+  0.13 % in test.
+
+**Adversarial validation.** A classifier trained to tell test rows from training
+rows, on the same 29 features the fraud models use, reaches a ROC-AUC of 0.956 (3-fold CV). Against the same
+clock hours one day earlier it reaches 0.997: the features alone identify the day.
+The "anonymised" PCA components carry a time signal: V3 on its own tells train
+from test with a ROC-AUC of 0.77 (its values are lower on the test slice) and
+correlates at -0.42 with `Time` (`results/feature_drift.csv`).
+
+So the feature distribution shifts strongly from one day to the next, yet the
+fraud models keep a PR-AUC of 0.80 on the next day. What separates fraud from
+legitimate traffic seems to be more stable than the traffic itself. With two days
+of data I cannot say how long that holds; that is the main limit of this dataset
+for any claim about production.
+
+Reproduce with `python scripts/run_stress.py` (about 1 min) and
+`python scripts/run_drift.py` (about 3 min).
+
 ## Tests
 
 ```bash

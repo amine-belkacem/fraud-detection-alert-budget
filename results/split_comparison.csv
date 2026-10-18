@@ -1,0 +1,13 @@
+model,split,seed,exact_copies_in_train,fraud_copies_in_train,pr_auc,recall@fpr0.001,test_frauds
+logreg_balanced,temporal,,0,0,0.747199,0.800000,75
+logreg_balanced,random,0.000000,259,3,0.702872,0.838384,99
+logreg_balanced,random,1.000000,249,7,0.772040,0.898990,99
+logreg_balanced,random,2.000000,272,5,0.773120,0.828283,99
+logreg_balanced,random,3.000000,270,4,0.789865,0.828283,99
+logreg_balanced,random,4.000000,256,8,0.698099,0.868687,99
+xgboost,temporal,,0,0,0.795548,0.800000,75
+xgboost,random,0.000000,259,3,0.859848,0.858586,99
+xgboost,random,1.000000,249,7,0.901857,0.898990,99
+xgboost,random,2.000000,272,5,0.857918,0.858586,99
+xgboost,random,3.000000,270,4,0.873459,0.868687,99
+xgboost,random,4.000000,256,8,0.842729,0.858586,99
