@@ -26,7 +26,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from fraudbudget import config  # noqa: E402
 from fraudbudget.data import AMOUNT, TARGET, TIME, load_dataset  # noqa: E402
 from fraudbudget.evaluate import evaluate_scores  # noqa: E402
-from fraudbudget.models import FEATURES, MODEL_NAMES, make_model  # noqa: E402
+from fraudbudget.models import FEATURES, make_model  # noqa: E402
 from fraudbudget.split import temporal_split  # noqa: E402
 
 DATA = ROOT / "data" / "raw" / "creditcard.csv"
@@ -35,6 +35,7 @@ FIGURES = ROOT / "figures"
 
 LABELS = {"dummy": "Dummy (always legit)", "logreg": "Logistic regression",
           "logreg_balanced": "Logistic regression, class-weighted"}
+BASELINES = ("dummy", "logreg", "logreg_balanced")
 COLORS = {"dummy": "#8a8986", "logreg": "#2a78d6", "logreg_balanced": "#eb6834"}
 INK, INK_MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 
@@ -118,7 +119,7 @@ def main() -> int:
     X_test, y_test = split.test[FEATURES], split.test[TARGET].to_numpy()
 
     rows, curves = {}, {}
-    for name in MODEL_NAMES:
+    for name in BASELINES:
         model = make_model(name, seed=config.SEED).fit(X_train, y_train)
         scores = model.predict_proba(X_test)[:, 1]
         rows[name] = evaluate_scores(y_test, scores, split.test[AMOUNT])

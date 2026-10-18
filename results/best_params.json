@@ -1,0 +1,33 @@
+{
+  "train_imbalance_ratio": 473.68888888888887,
+  "xgboost": {
+    "params": {
+      "max_depth": 6,
+      "n_estimators": 500,
+      "learning_rate": 0.1
+    },
+    "pos_weight": "ratio"
+  },
+  "xgboost_smote": {
+    "params": {
+      "max_depth": 6,
+      "n_estimators": 500,
+      "learning_rate": 0.1
+    },
+    "resample_ratio": 0.01
+  },
+  "xgboost_undersample": {
+    "params": {
+      "max_depth": 6,
+      "n_estimators": 500,
+      "learning_rate": 0.1
+    },
+    "resample_ratio": 0.01
+  },
+  "isolation_forest": {
+    "params": {
+      "max_samples": 4096,
+      "max_features": 0.5
+    }
+  }
+}

@@ -1,0 +1,13 @@
+a,b,mean_diff,ci_low,ci_high,share_a_better,metric
+xgboost,logreg_balanced,0.041219,-0.020383,0.121608,0.838000,pr_auc
+xgboost_smote,xgboost,-0.003513,-0.025151,0.016683,0.367000,pr_auc
+xgboost_undersample,xgboost,0.001272,-0.016101,0.022554,0.521000,pr_auc
+xgboost,isolation_forest,0.729866,0.649057,0.801330,1.000000,pr_auc
+xgboost,logreg_balanced,0.000253,-0.040000,0.040000,0.355000,recall@fpr0.001
+xgboost_smote,xgboost,-0.019760,-0.067000,0.026667,0.127000,recall@fpr0.001
+xgboost_undersample,xgboost,0.001320,-0.040000,0.040000,0.366000,recall@fpr0.001
+xgboost,isolation_forest,0.801560,0.706667,0.880333,1.000000,recall@fpr0.001
+xgboost,logreg_balanced,-0.000107,-0.040000,0.040000,0.341000,recall@budget200
+xgboost_smote,xgboost,-0.021413,-0.067000,0.026667,0.106000,recall@budget200
+xgboost_undersample,xgboost,0.001080,-0.040000,0.040000,0.359000,recall@budget200
+xgboost,isolation_forest,0.722747,0.613333,0.826667,1.000000,recall@budget200

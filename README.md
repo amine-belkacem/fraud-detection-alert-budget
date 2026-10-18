@@ -70,9 +70,74 @@ What I take from it:
   median row stays around 2. A linear model extrapolates on that kind of outlier,
   which is one reason to try trees in J2.
 - With 100 alerts per 100k transactions the test slice allows 56 alerts for 75
-  frauds, so no model can exceed 75 % recall under that budget.
+  frauds, so no model can exceed 75 % recall under that budget. From J2 on, the main
+  operating point is 200 per 100k (113 alerts) and 100 per 100k is kept as a stress case.
 
 Reproduce with `python scripts/run_baseline.py` (CSV in `results/`).
+
+## Trees, resampling and how much the test set can tell (milestone J2)
+
+Models added: Isolation Forest (no labels), XGBoost with class weighting, and
+XGBoost after SMOTE or random undersampling. Resampling sits inside an
+imbalanced-learn pipeline, so it only ever touches training rows.
+
+Hyperparameters were picked on the validation slice only, with a deliberately
+small grid (34 trials, `results/tuning.csv`): validation holds 57 frauds, and a big
+search would mostly learn those 57 rows. The resampled variants reuse the best
+XGBoost trees and only tune the resampling ratio, so any gap between them comes
+from the resampling itself.
+
+Every number below comes with a 95 % interval from 1,000 stratified bootstrap
+replicates of the test slice (each keeps its 75 frauds). All models are scored on
+the same replicates, which allows paired comparisons.
+
+![model comparison](figures/models_comparison.png)
+
+| Model | PR-AUC [95 % CI] | Recall @FPR 0.1 % | Recall, 113 alerts | PR-AUC spread over 5 seeds (std) |
+|---|---|---|---|---|
+| Dummy | 0.001 | 0 % | 0 % | 0 |
+| Isolation Forest | 0.065 [0.048, 0.092] | 0 % | 9 % [1, 15] | 0.003 |
+| LogReg | 0.684 [0.582, 0.787] | 75 % [65, 84] | 75 % [67, 84] | 0 |
+| LogReg weighted | 0.747 [0.643, 0.858] | 80 % [71, 88] | 80 % [71, 88] | 0 |
+| XGBoost weighted | 0.796 [0.709, 0.880] | 80 % [71, 88] | 80 % [71, 88] | 0.003 |
+| XGBoost + SMOTE | 0.792 [0.710, 0.877] | 79 % [68, 87] | 79 % [69, 87] | 0.010 |
+| XGBoost + undersampling | 0.797 [0.711, 0.879] | 80 % [71, 89] | 80 % [71, 89] | 0.011 |
+
+Paired differences in PR-AUC (`results/models_paired.csv`):
+
+| Comparison | Mean difference | 95 % CI | Replicates where the first wins |
+|---|---|---|---|
+| XGBoost vs LogReg weighted | +0.041 | [-0.020, +0.122] | 84 % |
+| XGBoost + SMOTE vs XGBoost | -0.004 | [-0.025, +0.017] | 37 % |
+| XGBoost + undersampling vs XGBoost | +0.001 | [-0.016, +0.023] | 52 % |
+| XGBoost vs Isolation Forest | +0.730 | [+0.649, +0.801] | 100 % |
+
+What I take from it:
+
+- **Resampling does not help here.** SMOTE and undersampling land within ±0.004
+  PR-AUC of plain class weighting, with intervals centred on zero. Class weights
+  get the same effect without inventing synthetic frauds or throwing data away.
+- **XGBoost is probably better than the weighted logistic regression, but this test
+  slice cannot prove it.** It wins 84 % of the replicates, yet the interval still
+  contains zero. With 75 frauds, a gap of 0.04 PR-AUC is within the noise. Under
+  the alert budget the two catch exactly the same number of frauds (60 of 75).
+- **Isolation Forest is not a fraud detector on this data.** It is 50 times better
+  than random (0.065 vs 0.0013 PR-AUC) but at a 0.1 % false positive rate it catches
+  nothing. Fraud here is not the same thing as "unusual": many legitimate
+  transactions are more atypical than the frauds.
+- **All the supervised models miss the same frauds.** Of the 75 test frauds, 58
+  are caught by all four supervised models and 13 by none (`scripts/missed_frauds.py`).
+  Those 13 add up to 2,378 EUR, including one of 1,097 EUR. Since the models
+  agree that closely, an ensemble would not help much: catching those frauds would
+  take new information (merchant, card history), which the anonymised dataset
+  does not provide.
+- Recall at 0.1 % FPR and recall with 113 alerts come out equal for every model.
+  Both operating points happen to land on the same threshold here: about 60
+  frauds plus 50 to 57 false alarms.
+
+Reproduce with `python scripts/tune.py` (about 4 min), then
+`python scripts/run_models.py` (about 7 min on my laptop) and
+`python scripts/missed_frauds.py`.
 
 ## Tests
 
