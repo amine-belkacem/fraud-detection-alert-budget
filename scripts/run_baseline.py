@@ -24,6 +24,7 @@ from sklearn.metrics import precision_recall_curve  # noqa: E402
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from fraudbudget import config  # noqa: E402
+from fraudbudget.plotting import GREY, INK, INK_MUTED, TEAL, VIOLET, style_axis  # noqa: E402
 from fraudbudget.data import AMOUNT, TARGET, TIME, load_dataset  # noqa: E402
 from fraudbudget.evaluate import evaluate_scores  # noqa: E402
 from fraudbudget.models import FEATURES, make_model  # noqa: E402
@@ -36,8 +37,7 @@ FIGURES = ROOT / "figures"
 LABELS = {"dummy": "Dummy (always legit)", "logreg": "Logistic regression",
           "logreg_balanced": "Logistic regression, class-weighted"}
 BASELINES = ("dummy", "logreg", "logreg_balanced")
-COLORS = {"dummy": "#8a8986", "logreg": "#2a78d6", "logreg_balanced": "#eb6834"}
-INK, INK_MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
+COLORS = {"dummy": GREY, "logreg": TEAL, "logreg_balanced": VIOLET}
 
 
 def split_summary(split) -> pd.DataFrame:
@@ -52,16 +52,6 @@ def split_summary(split) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def style_axis(ax) -> None:
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    for side in ("left", "bottom"):
-        ax.spines[side].set_color(INK_MUTED)
-    ax.tick_params(colors=INK_MUTED, labelsize=9)
-    ax.grid(color=GRID, linewidth=0.8)
-    ax.set_axisbelow(True)
-
-
 def plot(table: pd.DataFrame, curves: dict, prevalence: float, out: Path) -> None:
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.3), gridspec_kw={"width_ratios": [1, 1.3]})
 
@@ -71,8 +61,8 @@ def plot(table: pd.DataFrame, curves: dict, prevalence: float, out: Path) -> Non
     width = 0.36
     acc = table["accuracy@0.5"].to_numpy() * 100
     rec = table["recall@0.5"].to_numpy() * 100
-    b1 = ax1.bar(x - width / 2 - 0.01, acc, width, color="#2a78d6", label="Accuracy")
-    b2 = ax1.bar(x + width / 2 + 0.01, rec, width, color="#eb6834", label="Recall (frauds caught)")
+    b1 = ax1.bar(x - width / 2 - 0.01, acc, width, color=TEAL, label="Accuracy")
+    b2 = ax1.bar(x + width / 2 + 0.01, rec, width, color=VIOLET, label="Recall (frauds caught)")
     for bars, fmt in [(b1, "{:.2f}"), (b2, "{:.0f}")]:
         for bar in bars:
             ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5,
@@ -82,8 +72,7 @@ def plot(table: pd.DataFrame, curves: dict, prevalence: float, out: Path) -> Non
     ax1.set_ylabel("% at threshold 0.5", color=INK_MUTED, fontsize=9)
     ax1.set_title("Accuracy hides that the dummy catches nothing", fontsize=10.5, color=INK, loc="left")
     ax1.legend(frameon=False, fontsize=8.5, loc="upper center", bbox_to_anchor=(0.5, -0.17), ncol=2)
-    style_axis(ax1)
-    ax1.grid(axis="x", visible=False)
+    style_axis(ax1, grid_axis="y")
 
     # Right: precision-recall curves against the prevalence line (= random ranking).
     for name, (precision, recall) in curves.items():

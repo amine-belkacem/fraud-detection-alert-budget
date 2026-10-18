@@ -38,6 +38,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 from fraudbudget import config  # noqa: E402
+from fraudbudget.plotting import GRID, INK, INK_MUTED, TEAL, VIOLET  # noqa: E402
 from fraudbudget.data import COLUMNS, TARGET, TIME, load_dataset  # noqa: E402
 from fraudbudget.metrics import pr_auc, recall_at_fpr  # noqa: E402
 from fraudbudget.models import FEATURES, fraud_scores, make_model  # noqa: E402
@@ -50,7 +51,6 @@ FIGURES = ROOT / "figures"
 MODELS = ("logreg_balanced", "xgboost")
 RANDOM_SEEDS = (0, 1, 2, 3, 4)
 SECONDS_PER_HOUR = 3600
-INK, INK_MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 
 
 def fit_and_score(name: str, best: dict, train: pd.DataFrame, test: pd.DataFrame) -> dict:
@@ -153,9 +153,9 @@ def main() -> int:
 def plot_hourly(hourly: pd.DataFrame, split) -> None:
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 5.2), sharex=True)
     x = hourly.index.to_numpy() + 0.5
-    ax1.bar(x, hourly["transactions"] / 1000, width=0.85, color="#2a78d6")
+    ax1.bar(x, hourly["transactions"] / 1000, width=0.85, color=TEAL)
     ax1.set_ylabel("Transactions\n(thousands / hour)", color=INK_MUTED, fontsize=9)
-    ax2.bar(x, hourly["fraud_rate_pct"], width=0.85, color="#eb6834")
+    ax2.bar(x, hourly["fraud_rate_pct"], width=0.85, color=VIOLET)
     ax2.set_ylabel("Fraud rate (%)", color=INK_MUTED, fontsize=9)
     ax2.set_xlabel("Hours since the first transaction", color=INK_MUTED, fontsize=9)
     bounds = [split.val[TIME].min() / SECONDS_PER_HOUR, split.test[TIME].min() / SECONDS_PER_HOUR]

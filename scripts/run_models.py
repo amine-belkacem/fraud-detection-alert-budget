@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import json
 import sys
-from functools import partial
 from pathlib import Path
 
 import matplotlib
@@ -30,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from fraudbudget import config  # noqa: E402
 from fraudbudget.bootstrap import bootstrap_metric, paired_differences, summarise  # noqa: E402
+from fraudbudget.plotting import GREY, INK, INK_MUTED, TEAL, style_axis  # noqa: E402
 from fraudbudget.data import AMOUNT, TARGET, load_dataset  # noqa: E402
 from fraudbudget.evaluate import evaluate_scores  # noqa: E402
 from fraudbudget.metrics import alerts_for_budget, pr_auc, recall_at_budget, recall_at_fpr  # noqa: E402
@@ -53,7 +53,7 @@ PAIRS = [
     ("xgboost_undersample", "xgboost"),
     ("xgboost", "isolation_forest"),
 ]
-INK, INK_MUTED, GRID, ACCENT, NEUTRAL = "#0b0b0b", "#52514e", "#e4e3df", "#2a78d6", "#8a8986"
+ACCENT, NEUTRAL = TEAL, GREY
 
 
 def model_kwargs(name: str, best: dict) -> dict:
@@ -66,16 +66,6 @@ def model_kwargs(name: str, best: dict) -> dict:
     if name == "isolation_forest":
         return {"params": best["isolation_forest"]["params"]}
     return {}
-
-
-def style_axis(ax) -> None:
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    for side in ("left", "bottom"):
-        ax.spines[side].set_color(INK_MUTED)
-    ax.tick_params(colors=INK_MUTED, labelsize=9)
-    ax.grid(axis="x", color=GRID, linewidth=0.8)
-    ax.set_axisbelow(True)
 
 
 def interval_panel(ax, table: pd.DataFrame, order: list[str], title: str, xlabel: str,
@@ -96,7 +86,7 @@ def interval_panel(ax, table: pd.DataFrame, order: list[str], title: str, xlabel
     ax.set_ylim(-0.6, len(order) - 0.1)
     ax.set_xlabel(xlabel, color=INK_MUTED, fontsize=9)
     ax.set_title(title, fontsize=10.5, color=INK, loc="left")
-    style_axis(ax)
+    style_axis(ax, grid_axis="x")
 
 
 def main() -> int:

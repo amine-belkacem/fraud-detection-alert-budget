@@ -32,6 +32,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from fraudbudget import config  # noqa: E402
 from fraudbudget.bootstrap import percentile_interval, stratified_indices  # noqa: E402
 from fraudbudget.calibration import brier, reliability  # noqa: E402
+from fraudbudget.plotting import GREEN, INK, INK_MUTED, MAGENTA, TEAL, VIOLET, YELLOW, style_axis  # noqa: E402
 from fraudbudget.data import AMOUNT, TARGET, load_dataset  # noqa: E402
 from fraudbudget.metrics import business_cost, confusion  # noqa: E402
 from fraudbudget.models import FEATURES, fraud_scores, make_model  # noqa: E402
@@ -59,10 +60,9 @@ LABELS = {
     "xgboost_undersample": "XGBoost + undersampling",
 }
 COLORS = {
-    "logreg_balanced": "#8a8986", "xgboost": "#2a78d6", "xgboost_plain": "#1baf7a",
-    "xgboost_smote": "#eb6834", "xgboost_undersample": "#6250d6",
+    "xgboost": TEAL, "xgboost_smote": VIOLET, "xgboost_undersample": MAGENTA,
+    "xgboost_plain": YELLOW, "logreg_balanced": GREEN,
 }
-INK, INK_MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 
 
 def build(name: str, best: dict):
@@ -81,16 +81,6 @@ def apply_threshold(y, s, amount, threshold: float, cost_per_alert: float) -> di
         "missed_eur": cost.missed_fraud_eur, "review_eur": cost.review_eur,
         "cost_eur": cost.total_eur,
     }
-
-
-def style_axis(ax) -> None:
-    for side in ("top", "right"):
-        ax.spines[side].set_visible(False)
-    for side in ("left", "bottom"):
-        ax.spines[side].set_color(INK_MUTED)
-    ax.tick_params(colors=INK_MUTED, labelsize=9)
-    ax.grid(color=GRID, linewidth=0.8)
-    ax.set_axisbelow(True)
 
 
 def main() -> int:
@@ -197,7 +187,7 @@ def plot_cost_curve(y, s, amount, table: pd.DataFrame, c_alert: float) -> None:
     curve = cost_curve(y, s, amount, c_alert)
     keep = curve.n_alerts > 0
     fig, ax = plt.subplots(figsize=(8.5, 4.4))
-    ax.plot(curve.n_alerts[keep], curve.total_eur[keep], color="#2a78d6", linewidth=2,
+    ax.plot(curve.n_alerts[keep], curve.total_eur[keep], color=TEAL, linewidth=2,
             label="XGBoost weighted, every possible threshold")
     nothing = float(amount[y == 1].sum())
     ax.axhline(nothing, color=INK_MUTED, linestyle="--", linewidth=1)
@@ -209,7 +199,7 @@ def plot_cost_curve(y, s, amount, table: pd.DataFrame, c_alert: float) -> None:
     for rule, (label, marker) in markers.items():
         r = sub.loc[rule]
         ax.scatter(max(r.alerts, 1), r.cost_eur, marker=marker, s=70 if marker != "*" else 140,
-                   color="#eb6834" if rule != "oracle_on_test" else INK, zorder=3,
+                   color=VIOLET if rule != "oracle_on_test" else INK, zorder=3,
                    edgecolors="white", linewidths=1.2,
                    label=f"{label}: {int(r.alerts)} alerts, {r.cost_eur:,.0f} EUR")
     ax.set_xscale("log")

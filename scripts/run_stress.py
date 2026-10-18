@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 from fraudbudget import config  # noqa: E402
+from fraudbudget.plotting import GRID, INK, INK_MUTED, MAGENTA, TEAL, VIOLET  # noqa: E402
 from fraudbudget.data import TARGET, load_dataset  # noqa: E402
 from fraudbudget.metrics import confusion, pr_auc  # noqa: E402
 from fraudbudget.models import FEATURES, fraud_scores, make_model  # noqa: E402
@@ -43,11 +44,10 @@ LABELS = {"logreg_balanced": "LogReg weighted", "xgboost": "XGBoost weighted"}
 PREVALENCES = (0.001, 0.0005, 0.0002)  # plus the test slice as it is
 N_REPEATS = 200
 METRIC_STYLE = {
-    "roc_auc": ("ROC-AUC", "#8a8986"),
-    "pr_auc": ("PR-AUC", "#2a78d6"),
-    "precision": ("Precision at the frozen threshold", "#eb6834"),
+    "roc_auc": ("ROC-AUC", MAGENTA),
+    "pr_auc": ("PR-AUC", TEAL),
+    "precision": ("Precision at the frozen threshold", VIOLET),
 }
-INK, INK_MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
 
 
 def main() -> int:
