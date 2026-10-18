@@ -6,3 +6,4 @@ xgboost
 imbalanced-learn
 matplotlib
 pytest
+pyflakes

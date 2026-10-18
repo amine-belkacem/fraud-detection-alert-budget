@@ -1,10 +1,45 @@
 # Fraud detection under an alert budget
 
-Work in progress. This repository evaluates credit card fraud models the way a bank
-would use them: how many frauds get caught when analysts can only review a fixed
-number of alerts, and what the errors cost in euros. Accuracy is not used as a
-criterion, because on this dataset a model that never flags anything already
-scores 99.83 %.
+[![tests](https://github.com/amine-belkacem/fraud-detection-alert-budget/actions/workflows/tests.yml/badge.svg)](https://github.com/amine-belkacem/fraud-detection-alert-budget/actions/workflows/tests.yml)
+
+On a credit card dataset with 0.17 % fraud, a model that never flags anything is
+99.83 % accurate. This project evaluates fraud models the way a fraud team would
+actually use them: how many frauds are caught when analysts can only review a
+fixed number of alerts, what the errors cost in euros, and how much a test set of
+75 frauds really allows one to conclude.
+
+Everything is trained on the past and tested on the most recent transactions,
+every threshold is chosen on validation before touching test, and the main
+numbers come with bootstrap intervals.
+
+![stress test](figures/stress_test.png)
+
+## Main results
+
+| Question | Answer (test slice, 75 frauds, 95 % bootstrap intervals) |
+|---|---|
+| Does accuracy mean anything here? | No. The dummy model scores 99.87 % and catches 0 fraud. |
+| Best PR-AUC | 0.796 [0.709, 0.880] with class-weighted XGBoost (random ranking: 0.0013) |
+| Frauds caught at 0.1 % false positive rate | 80 % [71, 88], i.e. 60 of 75 |
+| Does SMOTE or undersampling help? | No measurable effect: within ±0.005 PR-AUC of plain class weighting, intervals centred on zero |
+| Is XGBoost better than a weighted logistic regression? | Probably (wins 84 % of bootstrap replicates), but the PR-AUC interval of the difference still contains zero. Under stress it is clearly more robust. |
+| What does a good threshold save? | The weighted logistic regression costs 10,281 EUR at threshold 0.5 and 2,928 EUR with a threshold chosen on validation. Flagging nothing costs 7,729 EUR. |
+| Does the 5 EUR per alert assumption drive that? | No. From 1 to 20 EUR per alert, every model stays between 31 % and 65 % of the cost of flagging nothing. |
+| What happens if fraud gets 6 times rarer? | ROC-AUC stays at 0.97 to 0.99, precision at the frozen threshold falls from 0.57 to 0.16, exactly as the false positive count predicts. |
+| What would a random split have reported? | PR-AUC 0.867 instead of 0.796 for XGBoost, an optimism of 0.07 that the temporal split removes. |
+
+### Against the success criteria set before starting
+
+| Criterion | Target | Measured | Met |
+|---|---|---|---|
+| C1 PR-AUC of the best model | at least 0.70 | 0.796 [0.709, 0.880] | yes, lower bound just above |
+| C2 recall at 0.1 % FPR | at least 70 % | 80 % [71, 88] | yes |
+| C3 cost below "flag nothing" and "flag everything", 1 to 20 EUR per alert | every value | 31 % to 65 % of "flag nothing" | yes |
+| C4 argued conclusion on resampling, with intervals | yes / no | no effect, intervals centred on zero | yes |
+| C5 stress test showing ROC-AUC vs precision | figure | `figures/stress_test.png` | yes |
+| C6 tests pass locally and in CI, one-command rebuild | yes | 70 tests, `python scripts/run_all.py` | yes |
+| E7 full rebuild time | under 15 min | 10.1 min | yes, on an idle laptop |
+| C7 inference in C on a Raspberry Pi 5 | optional | not done | no |
 
 ## Data
 
@@ -135,9 +170,8 @@ What I take from it:
   Both operating points happen to land on the same threshold here: about 60
   frauds plus 50 to 57 false alarms.
 
-Reproduce with `python scripts/tune.py` (about 4 min), then
-`python scripts/run_models.py` (about 7 min on my laptop) and
-`python scripts/missed_frauds.py`.
+Reproduce with `python scripts/tune.py`, then `python scripts/run_models.py`
+and `python scripts/missed_frauds.py`.
 
 ## Choosing the threshold, and what it costs (milestone J3)
 
@@ -225,7 +259,7 @@ however the analyst time is priced within that range.
   dataset's own authors show that undersampling biases probabilities (Dal Pozzolo
   et al., 2015); with 75 test frauds that effect stays inside the noise here.
 
-Reproduce with `python scripts/run_thresholds.py` (about 1.5 min, needs
+Reproduce with `python scripts/run_thresholds.py` (needs
 `results/best_params.json` from `scripts/tune.py`).
 
 ## Stress test and drift (milestone J4)
@@ -234,9 +268,8 @@ Reproduce with `python scripts/run_thresholds.py` (about 1.5 min, needs
 
 The test slice keeps all of its legitimate transactions and only a random subset
 of its 75 frauds, drawn 200 times per level. The threshold is the FPR-0.1 % one
-chosen on validation in J3, unchanged. Only the base rate moves.
-
-![stress test](figures/stress_test.png)
+chosen on validation in J3, unchanged. Only the base rate moves. The figure is
+the one at the top of this page.
 
 | Prevalence | Frauds kept | ROC-AUC (XGBoost) | PR-AUC (XGBoost) | PR-AUC (LogReg w.) | Precision at the frozen threshold |
 |---|---|---|---|---|---|
@@ -254,8 +287,9 @@ Medians over 200 draws; 5th to 95th percentiles in `results/stress_test_summary.
 - **Precision collapses, and it is predictable.** Both models flag 46 legitimate
   transactions at that threshold, whatever the number of frauds. True positives
   shrink with the frauds, false positives do not: with 11 frauds,
-  0.8 x 11 / (0.8 x 11 + 46) = 0.16. The dotted line on the figure is that formula; it sits
-  on top of the measured medians. At 0.02 % prevalence, 5 alerts out of 6 would be false.
+  0.8 x 11 / (0.8 x 11 + 46) = 0.16. The dotted line on the figure is that
+  formula; it sits on top of the measured medians. At 0.02 % prevalence, 5 alerts
+  out of 6 would be false.
 - **PR-AUC separates the two models where ROC-AUC could not.** XGBoost loses 0.04
   PR-AUC from 0.13 % to 0.02 %, the logistic regression loses 0.18. XGBoost puts
   more frauds at the very top of its ranking, above every legitimate transaction,
@@ -295,8 +329,9 @@ added 0.07 PR-AUC that would not survive deployment.
   0.13 % in test.
 
 **Adversarial validation.** A classifier trained to tell test rows from training
-rows, on the same 29 features the fraud models use, reaches a ROC-AUC of 0.956 (3-fold CV). Against the same
-clock hours one day earlier it reaches 0.997: the features alone identify the day.
+rows, on the same 29 features the fraud models use, reaches a ROC-AUC of 0.956
+(3-fold CV). Against the same clock hours one day earlier it reaches 0.997: the
+features alone identify the day.
 The "anonymised" PCA components carry a time signal: V3 on its own tells train
 from test with a ROC-AUC of 0.77 (its values are lower on the test slice) and
 correlates at -0.42 with `Time` (`results/feature_drift.csv`).
@@ -307,14 +342,79 @@ legitimate traffic seems to be more stable than the traffic itself. With two day
 of data I cannot say how long that holds; that is the main limit of this dataset
 for any claim about production.
 
-Reproduce with `python scripts/run_stress.py` (about 1 min) and
-`python scripts/run_drift.py` (about 3 min).
+Reproduce with `python scripts/run_stress.py` and `python scripts/run_drift.py`.
+Time per script: `results/run_all_timing.csv`.
+
+## How to reproduce
+
+```bash
+git clone https://github.com/amine-belkacem/fraud-detection-alert-budget
+cd fraud-detection-alert-budget
+python -m venv .venv
+.venv/Scripts/activate          # Windows; on Linux/macOS: source .venv/bin/activate
+pip install -r requirements.txt
+python scripts/run_all.py
+```
+
+`run_all.py` downloads and checks the dataset, then rebuilds every CSV in
+`results/` and every figure in `figures/`. On my laptop (AMD Ryzen 3 7320U, 8 GB of RAM,
+Python 3.15) the whole chain took 10.1 minutes in the run recorded in
+`results/run_all_timing.csv`. The same scripts ran up to about twice as slow
+in earlier runs while the laptop was busy with other work, so treat that time
+as a best case. All randomness is seeded: rerunning the chain reproduced every
+result file and figure identically, except the training times stored in
+`results/tuning.csv`.
 
 ## Tests
 
 ```bash
-pip install -r requirements.txt
 pytest -v
 ```
 
-The unit tests run on synthetic data, so the CI never downloads the dataset.
+70 tests, mostly on hand-computed cases: every expected value is worked out in a
+comment next to the assertion (metrics, cost, thresholds, bootstrap, split,
+calibration bins, stress-test helpers). Before trusting a test I break its
+expected value on purpose and check that it fails with an `ECHEC` message
+giving the value obtained and the one expected (messages are in French). The
+tests run on synthetic data, so the CI (GitHub Actions, Python 3.12) never
+downloads the dataset; it also runs pyflakes.
+
+## Limits
+
+- **Two days of data.** The test slice is one evening. I cannot say how the models
+  or the chosen thresholds would hold over weeks, and the drift analysis shows the
+  features change a lot from one day to the next.
+- **75 test frauds.** Most differences between good models are inside the noise,
+  which is why I report intervals and paired comparisons rather than a ranking.
+- **Anonymised features.** V1 to V28 are PCA components chosen by the data
+  provider. No feature engineering on merchant, card history or location is
+  possible, and the 13 frauds missed by every model would probably need exactly that.
+- **The cost model is a simplification.** A missed fraud costs its amount, an alert
+  costs 5 EUR of analyst time. Chargebacks, customer churn after a false alarm, or
+  fraud that grows when undetected are not modelled. The sensitivity analysis
+  covers the alert cost, not the shape of the model.
+- **Small validation set.** 57 frauds decide the hyperparameters and the thresholds.
+  The grid was kept small on purpose, and the minimum-cost threshold rule
+  visibly overfits it.
+
+## Repository layout
+
+```
+src/fraudbudget/   data checks, temporal split, metrics, models, thresholds,
+                   bootstrap, calibration, stress-test helpers, plotting palette
+scripts/           one script per milestone + run_all.py
+tests/             pytest suite (synthetic data)
+results/           every CSV quoted in this README
+figures/           every figure, generated by the scripts
+```
+
+## Possible next step
+
+Compile the XGBoost model to C and measure inference latency and memory on a
+Raspberry Pi 5 (criterion C7 of the original plan), with a test checking that
+the C scores match Python's.
+
+## Licence and data
+
+Code under the MIT licence. The dataset is not redistributed here; see the Data
+section above for its source and licence.

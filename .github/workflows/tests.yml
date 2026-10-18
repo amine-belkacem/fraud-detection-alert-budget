@@ -15,4 +15,5 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-ci.txt
       - run: pip install -r requirements-ci.txt
+      - run: python -m pyflakes src scripts tests
       - run: pytest -v
