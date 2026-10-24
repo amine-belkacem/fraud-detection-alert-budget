@@ -4,15 +4,17 @@ Usage:
     python scripts/download_data.py --out data/raw
 
 The CSV (about 150 MB) comes from the copy that Google hosts for the TensorFlow
-imbalanced-data tutorial. It is byte-identical to the Kaggle release
-(mlg-ulb/creditcardfraud), which needs an account to download. I first tried
-OpenML (dataset 1597) but its API was returning HTTP 503 at the time, so the
-script does not depend on it.
+imbalanced-data tutorial. Its content matches the Kaggle release
+(mlg-ulb/creditcardfraud): same 284,807 rows, 492 frauds and 1,081 duplicate
+rows. I have not compared the two files byte for byte, because Kaggle needs an
+account to download. I first tried OpenML (dataset 1597) but its API was
+returning HTTP 503 at the time, so the script does not depend on it.
 
 The file is verified twice: SHA-256 of the bytes, then row and fraud counts
-after parsing. If you download it from Kaggle by hand, drop it at
-data/raw/creditcard.csv and run this script: it will skip the download and
-only run the checks.
+after parsing. The SHA-256 pinned below is the one of the Google copy. If you
+put a copy downloaded from Kaggle at data/raw/creditcard.csv, the script skips
+the download; should its bytes differ, the SHA-256 check will say so even if
+the counts match.
 """
 
 from __future__ import annotations
